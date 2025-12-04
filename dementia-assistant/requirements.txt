@@ -19,3 +19,6 @@ vosk>=0.3.45
 
 # Audio capture
 sounddevice>=0.4.6
+
+# Text-to-speech (offline)
+pyttsx3>=2.90

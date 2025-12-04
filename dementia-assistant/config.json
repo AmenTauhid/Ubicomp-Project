@@ -23,9 +23,20 @@
         "sample_rate": 16000,
         "record_seconds": 4
     },
+    "tts": {
+        "enabled": true,
+        "rate": 140,
+        "volume": 1.0
+    },
+    "logging": {
+        "enabled": true,
+        "log_dir": "logs",
+        "max_entries": 1000
+    },
     "gui": {
         "window_title": "Dementia Assistant",
         "window_width": 1100,
-        "window_height": 900
+        "window_height": 900,
+        "high_contrast": true
     }
 }

@@ -23,6 +23,8 @@ from src.face_recognition_module import FaceRecognizer
 from src.object_recognition import ObjectRecognizer
 from src.speech_handler import SpeechHandler, Command
 from src.gui import DementiaAssistantGUI, AppState
+from src.tts_handler import TTSHandler
+from src.activity_logger import ActivityLogger
 
 
 class DementiaAssistant:
@@ -42,6 +44,8 @@ class DementiaAssistant:
         self.face_recognizer: Optional[FaceRecognizer] = None
         self.object_recognizer: Optional[ObjectRecognizer] = None
         self.speech_handler: Optional[SpeechHandler] = None
+        self.tts: Optional[TTSHandler] = None
+        self.logger: Optional[ActivityLogger] = None
         self.gui: Optional[DementiaAssistantGUI] = None
 
         # State
@@ -83,7 +87,7 @@ class DementiaAssistant:
         success = True
 
         # Initialize Camera
-        print("[1/5] Initializing camera...")
+        print("[1/7] Initializing camera...")
         cam_config = self.config.get('camera', {})
         self.camera = Camera(
             device_index=cam_config.get('device_index', 0),
@@ -100,7 +104,7 @@ class DementiaAssistant:
             print("  OK: Camera initialized")
 
         # Initialize Face Recognition
-        print("[2/5] Initializing face recognition...")
+        print("[2/7] Initializing face recognition...")
         face_config = self.config.get('face_recognition', {})
         self.face_recognizer = FaceRecognizer(
             known_faces_dir=face_config.get('known_faces_dir', 'data/known_faces'),
@@ -116,7 +120,7 @@ class DementiaAssistant:
             print("  WARNING: No faces loaded (add images to data/known_faces/)")
 
         # Initialize Object Recognition
-        print("[3/5] Initializing object recognition...")
+        print("[3/7] Initializing object recognition...")
         obj_config = self.config.get('object_recognition', {})
         self.object_recognizer = ObjectRecognizer(
             model_path=obj_config.get('model', 'yolov8n.pt'),
@@ -130,7 +134,7 @@ class DementiaAssistant:
             success = False
 
         # Initialize Speech Handler
-        print("[4/5] Initializing speech recognition...")
+        print("[4/7] Initializing speech recognition...")
         speech_config = self.config.get('speech', {})
         self.speech_handler = SpeechHandler(
             model_path=speech_config.get('model_path', 'models/vosk-model-small-en-us-0.15'),
@@ -144,13 +148,49 @@ class DementiaAssistant:
             print("  WARNING: Speech recognition not available")
             print("  (Download Vosk model to models/ directory)")
 
+        # Initialize Text-to-Speech
+        print("[5/7] Initializing text-to-speech...")
+        tts_config = self.config.get('tts', {})
+        if tts_config.get('enabled', True):
+            self.tts = TTSHandler(
+                rate=tts_config.get('rate', 140),
+                volume=tts_config.get('volume', 1.0)
+            )
+            if self.tts.load():
+                print("  OK: Text-to-speech initialized")
+            else:
+                print("  WARNING: Text-to-speech not available")
+                self.tts = None
+        else:
+            print("  SKIP: Text-to-speech disabled in config")
+            self.tts = None
+
+        # Initialize Activity Logger
+        print("[6/7] Initializing activity logger...")
+        log_config = self.config.get('logging', {})
+        if log_config.get('enabled', True):
+            self.logger = ActivityLogger(
+                log_dir=log_config.get('log_dir', 'logs'),
+                max_entries=log_config.get('max_entries', 1000)
+            )
+            if self.logger.load():
+                print("  OK: Activity logger initialized")
+                self.logger.log_app_event("startup", {"version": "1.0"})
+            else:
+                print("  WARNING: Activity logger not available")
+                self.logger = None
+        else:
+            print("  SKIP: Activity logging disabled in config")
+            self.logger = None
+
         # Initialize GUI
-        print("[5/5] Initializing GUI...")
+        print("[7/7] Initializing GUI...")
         gui_config = self.config.get('gui', {})
         self.gui = DementiaAssistantGUI(
             title=gui_config.get('window_title', 'Dementia Assistant'),
-            width=gui_config.get('window_width', 900),
-            height=gui_config.get('window_height', 700)
+            width=gui_config.get('window_width', 1100),
+            height=gui_config.get('window_height', 900),
+            high_contrast=gui_config.get('high_contrast', True)
         )
         self.gui.create()
 
@@ -245,18 +285,43 @@ class DementiaAssistant:
 
             if result:
                 message = self.face_recognizer.get_formatted_result(result)
-                color = '#66ff66' if result['name'] != 'unknown' else '#ffaa00'
+                is_known = result['name'] != 'unknown'
+                color = self.gui.colors['success'] if is_known else self.gui.colors['warning']
                 self._schedule_gui_update(self.gui.set_result, message, color)
+
+                # Text-to-speech
+                if self.tts:
+                    self.tts.speak_person_result(
+                        result['display_name'],
+                        result['relation'],
+                        result['confidence']
+                    )
+
+                # Log the recognition
+                if self.logger:
+                    self.logger.log_person_recognition(
+                        name=result['name'],
+                        display_name=result['display_name'],
+                        relation=result['relation'],
+                        confidence=result['confidence'],
+                        recognized=is_known
+                    )
             else:
                 self._schedule_gui_update(
                     self.gui.set_result,
                     "I don't see anyone in front of the camera.",
-                    '#ffaa00'
+                    self.gui.colors['warning']
                 )
+
+                # TTS and logging for no detection
+                if self.tts:
+                    self.tts.speak_no_detection("person")
+                if self.logger:
+                    self.logger.log_no_detection("person")
 
         except Exception as e:
             print(f"Error identifying person: {e}")
-            self._schedule_gui_update(self.gui.set_result, f"Error: {str(e)}", '#ff6666')
+            self._schedule_gui_update(self.gui.set_result, f"Error: {str(e)}", self.gui.colors['error'])
 
         finally:
             self._processing = False
@@ -277,23 +342,52 @@ class DementiaAssistant:
 
             if result:
                 message = self.object_recognizer.get_formatted_result(result)
-                self._schedule_gui_update(self.gui.set_result, message, '#66ff66')
+                self._schedule_gui_update(self.gui.set_result, message, self.gui.colors['success'])
+
+                # Text-to-speech
+                if self.tts:
+                    self.tts.speak_object_result(result['label'], result['confidence'])
+
+                # Log the recognition
+                if self.logger:
+                    self.logger.log_object_recognition(
+                        label=result['label'],
+                        confidence=result['confidence']
+                    )
             else:
                 # Try getting any detection
                 results = self.object_recognizer.detect(frame)
                 if results:
                     message = self.object_recognizer.get_all_formatted(results)
-                    self._schedule_gui_update(self.gui.set_result, message, '#66ff66')
+                    self._schedule_gui_update(self.gui.set_result, message, self.gui.colors['success'])
+
+                    # TTS for first object
+                    if self.tts and results:
+                        self.tts.speak_object_result(results[0]['label'], results[0]['confidence'])
+
+                    # Log all objects
+                    if self.logger and results:
+                        self.logger.log_object_recognition(
+                            label=results[0]['label'],
+                            confidence=results[0]['confidence'],
+                            all_objects=[r['label'] for r in results]
+                        )
                 else:
                     self._schedule_gui_update(
                         self.gui.set_result,
                         "I don't recognize any objects in the frame.",
-                        '#ffaa00'
+                        self.gui.colors['warning']
                     )
+
+                    # TTS and logging for no detection
+                    if self.tts:
+                        self.tts.speak_no_detection("object")
+                    if self.logger:
+                        self.logger.log_no_detection("object")
 
         except Exception as e:
             print(f"Error identifying object: {e}")
-            self._schedule_gui_update(self.gui.set_result, f"Error: {str(e)}", '#ff6666')
+            self._schedule_gui_update(self.gui.set_result, f"Error: {str(e)}", self.gui.colors['error'])
 
         finally:
             self._processing = False
@@ -416,6 +510,14 @@ class DementiaAssistant:
     def cleanup(self) -> None:
         """Clean up resources."""
         print("Cleaning up...")
+
+        # Log shutdown
+        if self.logger:
+            self.logger.log_app_event("shutdown")
+
+        # Stop TTS
+        if self.tts:
+            self.tts.stop()
 
         if self.camera:
             self.camera.close()

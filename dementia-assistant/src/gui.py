@@ -22,11 +22,43 @@ class AppState(Enum):
 class DementiaAssistantGUI:
     """Main GUI for the Dementia Assistant application."""
 
+    # High contrast color scheme for visibility
+    COLORS_HIGH_CONTRAST = {
+        'bg_dark': '#000000',
+        'bg_medium': '#1a1a1a',
+        'bg_light': '#2d2d2d',
+        'text_primary': '#ffffff',
+        'text_secondary': '#cccccc',
+        'accent_blue': '#4dabf7',
+        'accent_green': '#51cf66',
+        'accent_orange': '#ff922b',
+        'accent_red': '#ff6b6b',
+        'success': '#51cf66',
+        'warning': '#fcc419',
+        'error': '#ff6b6b'
+    }
+
+    COLORS_NORMAL = {
+        'bg_dark': '#2b2b2b',
+        'bg_medium': '#3a3a3a',
+        'bg_light': '#4a4a4a',
+        'text_primary': '#ffffff',
+        'text_secondary': '#888888',
+        'accent_blue': '#4a90d9',
+        'accent_green': '#5cb85c',
+        'accent_orange': '#e67e22',
+        'accent_red': '#ff6b6b',
+        'success': '#66ff66',
+        'warning': '#ffaa00',
+        'error': '#ff6666'
+    }
+
     def __init__(
         self,
         title: str = "Dementia Assistant",
         width: int = 900,
-        height: int = 700
+        height: int = 700,
+        high_contrast: bool = True
     ):
         """
         Initialize the GUI.
@@ -35,10 +67,13 @@ class DementiaAssistantGUI:
             title: Window title
             width: Window width
             height: Window height
+            high_contrast: Use high contrast colors for better visibility
         """
         self.title = title
         self.width = width
         self.height = height
+        self.high_contrast = high_contrast
+        self.colors = self.COLORS_HIGH_CONTRAST if high_contrast else self.COLORS_NORMAL
 
         # Callbacks
         self.on_ptt_press: Optional[Callable] = None
@@ -68,10 +103,10 @@ class DementiaAssistantGUI:
         self.root = tk.Tk()
         self.root.title(self.title)
         self.root.geometry(f"{self.width}x{self.height}")
-        self.root.configure(bg='#2b2b2b')
+        self.root.configure(bg=self.colors['bg_dark'])
 
         # Set minimum window size so buttons are always visible
-        self.root.minsize(800, 700)
+        self.root.minsize(900, 750)
 
         # Handle window close
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
@@ -85,15 +120,19 @@ class DementiaAssistantGUI:
         self._running = True
 
     def _setup_fonts(self) -> None:
-        """Configure custom fonts."""
-        self.font_large = tkfont.Font(family="Helvetica", size=24, weight="bold")
-        self.font_medium = tkfont.Font(family="Helvetica", size=16)
-        self.font_small = tkfont.Font(family="Helvetica", size=12)
+        """Configure custom fonts - larger sizes for better visibility."""
+        # Larger fonts for dementia users
+        self.font_large = tkfont.Font(family="Helvetica", size=32, weight="bold")
+        self.font_medium = tkfont.Font(family="Helvetica", size=22, weight="bold")
+        self.font_small = tkfont.Font(family="Helvetica", size=16)
+        self.font_result = tkfont.Font(family="Helvetica", size=26, weight="bold")
 
     def _create_layout(self) -> None:
         """Create the GUI layout."""
+        c = self.colors  # Shorthand for colors
+
         # Main container
-        main_frame = tk.Frame(self.root, bg='#2b2b2b')
+        main_frame = tk.Frame(self.root, bg=c['bg_dark'])
         main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
 
         # Title at top
@@ -101,106 +140,106 @@ class DementiaAssistantGUI:
             main_frame,
             text="Dementia Assistant",
             font=self.font_large,
-            fg='white',
-            bg='#2b2b2b'
+            fg=c['text_primary'],
+            bg=c['bg_dark']
         )
         title_label.pack(side=tk.TOP, pady=(0, 10))
 
         # Bottom controls container - pack FIRST so it stays at bottom
-        bottom_frame = tk.Frame(main_frame, bg='#2b2b2b')
+        bottom_frame = tk.Frame(main_frame, bg=c['bg_dark'])
         bottom_frame.pack(side=tk.BOTTOM, fill=tk.X)
 
-        # Result display (in bottom frame)
-        result_frame = tk.Frame(bottom_frame, bg='#3a3a3a', relief=tk.RAISED, bd=1)
+        # Result display (in bottom frame) - prominent for visibility
+        result_frame = tk.Frame(bottom_frame, bg=c['bg_medium'], relief=tk.RAISED, bd=3)
         result_frame.pack(fill=tk.X, pady=(10, 5))
 
         self.result_label = tk.Label(
             result_frame,
-            text="Hold the orange button and speak, or click a button below",
-            font=self.font_medium,
-            fg='#ffffff',
-            bg='#3a3a3a',
+            text="Press a button to identify someone or something",
+            font=self.font_result,
+            fg=c['text_primary'],
+            bg=c['bg_medium'],
             wraplength=self.width - 60,
             justify=tk.CENTER,
-            pady=15
+            pady=25
         )
         self.result_label.pack(fill=tk.X, padx=10)
 
         # Control frame (in bottom_frame)
-        control_frame = tk.Frame(bottom_frame, bg='#2b2b2b')
+        control_frame = tk.Frame(bottom_frame, bg=c['bg_dark'])
         control_frame.pack(fill=tk.X, pady=5)
 
         # All buttons in one row
-        button_row = tk.Frame(control_frame, bg='#2b2b2b')
-        button_row.pack(pady=5)
+        button_row = tk.Frame(control_frame, bg=c['bg_dark'])
+        button_row.pack(pady=10)
 
-        # Identify Person Button
+        # Identify Person Button - Large and clear
         self.person_button = tk.Button(
             button_row,
-            text="Who is this?",
+            text="WHO IS THIS?",
             font=self.font_medium,
-            bg='#4a90d9',
+            bg=c['accent_blue'],
             fg='white',
-            activebackground='#3a7bc8',
+            activebackground='#6bc4ff',
             activeforeground='white',
             relief=tk.RAISED,
-            bd=3,
-            padx=20,
-            pady=10,
+            bd=4,
+            padx=25,
+            pady=15,
             cursor="hand2",
             command=self._on_person_click
         )
-        self.person_button.pack(side=tk.LEFT, padx=10)
+        self.person_button.pack(side=tk.LEFT, padx=15)
 
         # PTT Button for voice commands (center)
         self.ptt_button = tk.Button(
             button_row,
-            text="Hold to Speak",
+            text="HOLD TO SPEAK",
             font=self.font_medium,
-            bg='#e67e22',
+            bg=c['accent_orange'],
             fg='white',
-            activebackground='#ff6b6b',
+            activebackground=c['accent_red'],
             activeforeground='white',
             relief=tk.RAISED,
-            bd=3,
+            bd=4,
             padx=30,
-            pady=10,
+            pady=15,
             cursor="hand2"
         )
-        self.ptt_button.pack(side=tk.LEFT, padx=10)
+        self.ptt_button.pack(side=tk.LEFT, padx=15)
 
         # Bind mouse events for PTT
         self.ptt_button.bind('<ButtonPress-1>', self._on_ptt_press)
         self.ptt_button.bind('<ButtonRelease-1>', self._on_ptt_release)
 
-        # Identify Object Button
+        # Identify Object Button - Large and clear
         self.object_button = tk.Button(
             button_row,
-            text="What is this?",
+            text="WHAT IS THIS?",
             font=self.font_medium,
-            bg='#5cb85c',
+            bg=c['accent_green'],
             fg='white',
-            activebackground='#4a9a4a',
+            activebackground='#7ddf8a',
             activeforeground='white',
             relief=tk.RAISED,
-            bd=3,
-            padx=20,
-            pady=10,
+            bd=4,
+            padx=25,
+            pady=15,
             cursor="hand2",
             command=self._on_object_click
         )
-        self.object_button.pack(side=tk.LEFT, padx=10)
+        self.object_button.pack(side=tk.LEFT, padx=15)
 
         # Status bar (in bottom_frame)
-        status_frame = tk.Frame(bottom_frame, bg='#1a1a1a')
+        status_frame = tk.Frame(bottom_frame, bg=c['bg_medium'])
         status_frame.pack(fill=tk.X, side=tk.BOTTOM)
 
         self.status_label = tk.Label(
             status_frame,
             text="Ready",
             font=self.font_small,
-            fg='#888888',
-            bg='#1a1a1a',
+            fg=c['text_secondary'],
+            bg=c['bg_medium'],
             anchor=tk.W,
             padx=10,
             pady=5
@@ -208,10 +247,10 @@ class DementiaAssistantGUI:
         self.status_label.pack(fill=tk.X)
 
         # Camera feed frame - takes remaining space in center
-        camera_frame = tk.Frame(main_frame, bg='#1a1a1a', relief=tk.SUNKEN, bd=2)
+        camera_frame = tk.Frame(main_frame, bg=c['bg_medium'], relief=tk.SUNKEN, bd=3)
         camera_frame.pack(fill=tk.BOTH, expand=True, pady=10)
 
-        self.camera_label = tk.Label(camera_frame, bg='#1a1a1a')
+        self.camera_label = tk.Label(camera_frame, bg=c['bg_medium'])
         self.camera_label.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
     def _on_ptt_press(self, event) -> None:
