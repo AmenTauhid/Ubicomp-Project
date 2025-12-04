@@ -25,7 +25,7 @@
     },
     "gui": {
         "window_title": "Dementia Assistant",
-        "window_width": 900,
-        "window_height": 700
+        "window_width": 1100,
+        "window_height": 900
     }
 }

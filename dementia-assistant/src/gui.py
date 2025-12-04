@@ -70,6 +70,9 @@ class DementiaAssistantGUI:
         self.root.geometry(f"{self.width}x{self.height}")
         self.root.configure(bg='#2b2b2b')
 
+        # Set minimum window size so buttons are always visible
+        self.root.minsize(800, 700)
+
         # Handle window close
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
 
@@ -91,9 +94,9 @@ class DementiaAssistantGUI:
         """Create the GUI layout."""
         # Main container
         main_frame = tk.Frame(self.root, bg='#2b2b2b')
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
 
-        # Title
+        # Title at top
         title_label = tk.Label(
             main_frame,
             text="Dementia Assistant",
@@ -101,18 +104,15 @@ class DementiaAssistantGUI:
             fg='white',
             bg='#2b2b2b'
         )
-        title_label.pack(pady=(0, 10))
+        title_label.pack(side=tk.TOP, pady=(0, 10))
 
-        # Camera feed frame
-        camera_frame = tk.Frame(main_frame, bg='#1a1a1a', relief=tk.SUNKEN, bd=2)
-        camera_frame.pack(fill=tk.BOTH, expand=True, pady=10)
+        # Bottom controls container - pack FIRST so it stays at bottom
+        bottom_frame = tk.Frame(main_frame, bg='#2b2b2b')
+        bottom_frame.pack(side=tk.BOTTOM, fill=tk.X)
 
-        self.camera_label = tk.Label(camera_frame, bg='#1a1a1a')
-        self.camera_label.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-
-        # Result display
-        result_frame = tk.Frame(main_frame, bg='#3a3a3a', relief=tk.RAISED, bd=1)
-        result_frame.pack(fill=tk.X, pady=10)
+        # Result display (in bottom frame)
+        result_frame = tk.Frame(bottom_frame, bg='#3a3a3a', relief=tk.RAISED, bd=1)
+        result_frame.pack(fill=tk.X, pady=(10, 5))
 
         self.result_label = tk.Label(
             result_frame,
@@ -122,52 +122,21 @@ class DementiaAssistantGUI:
             bg='#3a3a3a',
             wraplength=self.width - 60,
             justify=tk.CENTER,
-            pady=20
+            pady=15
         )
         self.result_label.pack(fill=tk.X, padx=10)
 
-        # Control frame
-        control_frame = tk.Frame(main_frame, bg='#2b2b2b')
-        control_frame.pack(fill=tk.X, pady=10)
+        # Control frame (in bottom_frame)
+        control_frame = tk.Frame(bottom_frame, bg='#2b2b2b')
+        control_frame.pack(fill=tk.X, pady=5)
 
-        # PTT Button for voice commands
-        self.ptt_button = tk.Button(
-            control_frame,
-            text="Hold to Speak",
-            font=self.font_medium,
-            bg='#e67e22',
-            fg='white',
-            activebackground='#ff6b6b',
-            activeforeground='white',
-            relief=tk.RAISED,
-            bd=3,
-            padx=40,
-            pady=15,
-            cursor="hand2"
-        )
-        self.ptt_button.pack(pady=(10, 5))
-
-        # Bind mouse events for PTT
-        self.ptt_button.bind('<ButtonPress-1>', self._on_ptt_press)
-        self.ptt_button.bind('<ButtonRelease-1>', self._on_ptt_release)
-
-        # Helper text
-        helper_label = tk.Label(
-            control_frame,
-            text="Or click a button below:",
-            font=self.font_small,
-            fg='#888888',
-            bg='#2b2b2b'
-        )
-        helper_label.pack(pady=(10, 5))
-
-        # Button container for direct action buttons
-        button_container = tk.Frame(control_frame, bg='#2b2b2b')
-        button_container.pack(pady=5)
+        # All buttons in one row
+        button_row = tk.Frame(control_frame, bg='#2b2b2b')
+        button_row.pack(pady=5)
 
         # Identify Person Button
         self.person_button = tk.Button(
-            button_container,
+            button_row,
             text="Who is this?",
             font=self.font_medium,
             bg='#4a90d9',
@@ -176,16 +145,37 @@ class DementiaAssistantGUI:
             activeforeground='white',
             relief=tk.RAISED,
             bd=3,
-            padx=30,
+            padx=20,
             pady=10,
             cursor="hand2",
             command=self._on_person_click
         )
         self.person_button.pack(side=tk.LEFT, padx=10)
 
+        # PTT Button for voice commands (center)
+        self.ptt_button = tk.Button(
+            button_row,
+            text="Hold to Speak",
+            font=self.font_medium,
+            bg='#e67e22',
+            fg='white',
+            activebackground='#ff6b6b',
+            activeforeground='white',
+            relief=tk.RAISED,
+            bd=3,
+            padx=30,
+            pady=10,
+            cursor="hand2"
+        )
+        self.ptt_button.pack(side=tk.LEFT, padx=10)
+
+        # Bind mouse events for PTT
+        self.ptt_button.bind('<ButtonPress-1>', self._on_ptt_press)
+        self.ptt_button.bind('<ButtonRelease-1>', self._on_ptt_release)
+
         # Identify Object Button
         self.object_button = tk.Button(
-            button_container,
+            button_row,
             text="What is this?",
             font=self.font_medium,
             bg='#5cb85c',
@@ -194,15 +184,15 @@ class DementiaAssistantGUI:
             activeforeground='white',
             relief=tk.RAISED,
             bd=3,
-            padx=30,
+            padx=20,
             pady=10,
             cursor="hand2",
             command=self._on_object_click
         )
         self.object_button.pack(side=tk.LEFT, padx=10)
 
-        # Status bar
-        status_frame = tk.Frame(main_frame, bg='#1a1a1a')
+        # Status bar (in bottom_frame)
+        status_frame = tk.Frame(bottom_frame, bg='#1a1a1a')
         status_frame.pack(fill=tk.X, side=tk.BOTTOM)
 
         self.status_label = tk.Label(
@@ -216,6 +206,13 @@ class DementiaAssistantGUI:
             pady=5
         )
         self.status_label.pack(fill=tk.X)
+
+        # Camera feed frame - takes remaining space in center
+        camera_frame = tk.Frame(main_frame, bg='#1a1a1a', relief=tk.SUNKEN, bd=2)
+        camera_frame.pack(fill=tk.BOTH, expand=True, pady=10)
+
+        self.camera_label = tk.Label(camera_frame, bg='#1a1a1a')
+        self.camera_label.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
     def _on_ptt_press(self, event) -> None:
         """Handle PTT button press."""
