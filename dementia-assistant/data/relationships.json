@@ -1,0 +1,17 @@
+{
+    "example_john": {
+        "display_name": "John",
+        "relation": "your son",
+        "notes": "Lives nearby, visits on weekends"
+    },
+    "example_mary": {
+        "display_name": "Mary",
+        "relation": "your daughter",
+        "notes": "Calls every evening"
+    },
+    "example_dr_smith": {
+        "display_name": "Dr. Smith",
+        "relation": "your doctor",
+        "notes": "Appointment every month"
+    }
+}

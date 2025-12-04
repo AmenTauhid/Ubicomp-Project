@@ -1,0 +1,31 @@
+{
+    "camera": {
+        "device_index": 0,
+        "capture_width": 1280,
+        "capture_height": 720,
+        "process_width": 640,
+        "process_height": 480,
+        "fps": 15
+    },
+    "face_recognition": {
+        "known_faces_dir": "data/known_faces",
+        "encodings_file": "data/face_encodings.pkl",
+        "relationships_file": "data/relationships.json",
+        "tolerance": 0.6,
+        "model": "hog"
+    },
+    "object_recognition": {
+        "model": "yolov8n.pt",
+        "confidence_threshold": 0.5
+    },
+    "speech": {
+        "model_path": "models/vosk-model-small-en-us-0.15",
+        "sample_rate": 16000,
+        "record_seconds": 4
+    },
+    "gui": {
+        "window_title": "Dementia Assistant",
+        "window_width": 900,
+        "window_height": 700
+    }
+}
