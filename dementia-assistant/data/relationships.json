@@ -1,12 +1,12 @@
 {
-    "example_john": {
-        "display_name": "John",
-        "relation": "your son",
+    "ayman": {
+        "display_name": "Ayman",
+        "relation": "your friend",
         "notes": "Lives nearby, visits on weekends"
     },
-    "example_mary": {
-        "display_name": "Mary",
-        "relation": "your daughter",
+    "omar": {
+        "display_name": "Omar",
+        "relation": "your friend",
         "notes": "Calls every evening"
     },
     "example_dr_smith": {
