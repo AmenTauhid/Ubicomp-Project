@@ -3,8 +3,8 @@ GUI Module - Tkinter-based interface for the Dementia Assistant.
 """
 
 import tkinter as tk
-from tkinter import ttk, font as tkfont
-from typing import Optional, Callable
+from tkinter import ttk, font as tkfont, simpledialog, messagebox
+from typing import Optional, Callable, Tuple
 from enum import Enum
 
 import cv2
@@ -80,6 +80,7 @@ class DementiaAssistantGUI:
         self.on_ptt_release: Optional[Callable] = None
         self.on_identify_person: Optional[Callable] = None
         self.on_identify_object: Optional[Callable] = None
+        self.on_add_person: Optional[Callable] = None
         self.on_close: Optional[Callable] = None
 
         # State
@@ -94,6 +95,7 @@ class DementiaAssistantGUI:
         self.ptt_button: Optional[tk.Button] = None
         self.person_button: Optional[tk.Button] = None
         self.object_button: Optional[tk.Button] = None
+        self.add_person_button: Optional[tk.Button] = None
 
         # Image reference (prevent garbage collection)
         self._current_image: Optional[ImageTk.PhotoImage] = None
@@ -230,6 +232,28 @@ class DementiaAssistantGUI:
         )
         self.object_button.pack(side=tk.LEFT, padx=15)
 
+        # Secondary button row for management
+        secondary_row = tk.Frame(control_frame, bg=c['bg_dark'])
+        secondary_row.pack(pady=(5, 10))
+
+        # Add Person Button
+        self.add_person_button = tk.Button(
+            secondary_row,
+            text="+ ADD NEW PERSON",
+            font=self.font_small,
+            bg=c['bg_light'],
+            fg=c['text_primary'],
+            activebackground=c['accent_blue'],
+            activeforeground='white',
+            relief=tk.RAISED,
+            bd=2,
+            padx=15,
+            pady=8,
+            cursor="hand2",
+            command=self._on_add_person_click
+        )
+        self.add_person_button.pack()
+
         # Status bar (in bottom_frame)
         status_frame = tk.Frame(bottom_frame, bg=c['bg_medium'])
         status_frame.pack(fill=tk.X, side=tk.BOTTOM)
@@ -277,12 +301,162 @@ class DementiaAssistantGUI:
         if self.on_identify_object:
             self.on_identify_object()
 
+    def _on_add_person_click(self) -> None:
+        """Handle 'Add Person' button click."""
+        if self.on_add_person:
+            self.on_add_person()
+
     def _on_closing(self) -> None:
         """Handle window close event."""
         self._running = False
         if self.on_close:
             self.on_close()
         self.root.destroy()
+
+    def show_add_person_dialog(self) -> Optional[Tuple[str, str]]:
+        """
+        Show a dialog to capture person's name and relationship.
+
+        Returns:
+            Tuple of (name, relationship) or None if cancelled
+        """
+        if not self.root:
+            return None
+
+        # Create a custom dialog
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Add New Person")
+        dialog.geometry("450x300")
+        dialog.configure(bg=self.colors['bg_dark'])
+        dialog.transient(self.root)
+        dialog.grab_set()
+
+        # Center the dialog
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() - 450) // 2
+        y = (dialog.winfo_screenheight() - 300) // 2
+        dialog.geometry(f"+{x}+{y}")
+
+        result: dict = {'name': '', 'relation': ''}
+
+        # Title
+        tk.Label(
+            dialog,
+            text="Add New Person",
+            font=self.font_medium,
+            fg=self.colors['text_primary'],
+            bg=self.colors['bg_dark']
+        ).pack(pady=(20, 15))
+
+        # Name entry
+        tk.Label(
+            dialog,
+            text="Name:",
+            font=self.font_small,
+            fg=self.colors['text_primary'],
+            bg=self.colors['bg_dark']
+        ).pack(anchor=tk.W, padx=30)
+
+        name_entry = tk.Entry(
+            dialog,
+            font=self.font_small,
+            width=30,
+            bg=self.colors['bg_medium'],
+            fg=self.colors['text_primary'],
+            insertbackground=self.colors['text_primary']
+        )
+        name_entry.pack(pady=(5, 15), padx=30)
+        name_entry.focus_set()
+
+        # Relationship entry
+        tk.Label(
+            dialog,
+            text="Relationship (e.g., 'your son', 'your doctor'):",
+            font=self.font_small,
+            fg=self.colors['text_primary'],
+            bg=self.colors['bg_dark']
+        ).pack(anchor=tk.W, padx=30)
+
+        relation_entry = tk.Entry(
+            dialog,
+            font=self.font_small,
+            width=30,
+            bg=self.colors['bg_medium'],
+            fg=self.colors['text_primary'],
+            insertbackground=self.colors['text_primary']
+        )
+        relation_entry.pack(pady=(5, 20), padx=30)
+
+        def on_save():
+            name = name_entry.get().strip()
+            relation = relation_entry.get().strip()
+            if name:
+                result['name'] = name
+                result['relation'] = relation
+                dialog.destroy()
+            else:
+                messagebox.showwarning("Missing Name", "Please enter a name.", parent=dialog)
+
+        def on_cancel():
+            dialog.destroy()
+
+        # Buttons
+        btn_frame = tk.Frame(dialog, bg=self.colors['bg_dark'])
+        btn_frame.pack(pady=10)
+
+        tk.Button(
+            btn_frame,
+            text="SAVE",
+            font=self.font_small,
+            bg=self.colors['accent_green'],
+            fg='white',
+            padx=20,
+            pady=5,
+            command=on_save
+        ).pack(side=tk.LEFT, padx=10)
+
+        tk.Button(
+            btn_frame,
+            text="CANCEL",
+            font=self.font_small,
+            bg=self.colors['accent_red'],
+            fg='white',
+            padx=20,
+            pady=5,
+            command=on_cancel
+        ).pack(side=tk.LEFT, padx=10)
+
+        # Wait for dialog to close
+        self.root.wait_window(dialog)
+
+        if result['name']:
+            return (result['name'], result['relation'])
+        return None
+
+    def show_message(self, title: str, message: str, msg_type: str = "info") -> None:
+        """
+        Show a message dialog.
+
+        Args:
+            title: Dialog title
+            message: Message to display
+            msg_type: "info", "warning", or "error"
+        """
+        if msg_type == "warning":
+            if self.root:
+                messagebox.showwarning(title, message, parent=self.root)
+            else:
+                messagebox.showwarning(title, message)
+        elif msg_type == "error":
+            if self.root:
+                messagebox.showerror(title, message, parent=self.root)
+            else:
+                messagebox.showerror(title, message)
+        else:
+            if self.root:
+                messagebox.showinfo(title, message, parent=self.root)
+            else:
+                messagebox.showinfo(title, message)
 
     def update_camera_frame(self, frame: np.ndarray) -> None:
         """
@@ -358,6 +532,8 @@ class DementiaAssistantGUI:
                 self.person_button.configure(state=tk.NORMAL)
             if self.object_button:
                 self.object_button.configure(state=tk.NORMAL)
+            if self.add_person_button:
+                self.add_person_button.configure(state=tk.NORMAL)
 
         elif state == AppState.LISTENING:
             self.set_status("Listening...")
@@ -372,6 +548,8 @@ class DementiaAssistantGUI:
                 self.person_button.configure(state=tk.DISABLED)
             if self.object_button:
                 self.object_button.configure(state=tk.DISABLED)
+            if self.add_person_button:
+                self.add_person_button.configure(state=tk.DISABLED)
 
     def update(self) -> None:
         """Process pending GUI events."""

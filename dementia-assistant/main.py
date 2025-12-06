@@ -9,6 +9,7 @@ Usage:
     python main.py
 """
 
+import datetime
 import json
 import queue
 import threading
@@ -17,6 +18,7 @@ from pathlib import Path
 from typing import Optional
 
 import cv2
+import face_recognition
 
 from src.camera import Camera
 from src.face_recognition_module import FaceRecognizer
@@ -199,6 +201,7 @@ class DementiaAssistant:
         self.gui.on_ptt_release = self._on_ptt_release
         self.gui.on_identify_person = self._on_identify_person_click
         self.gui.on_identify_object = self._on_identify_object_click
+        self.gui.on_add_person = self._on_add_person_click
         self.gui.on_close = self._on_close
 
         print("  OK: GUI initialized")
@@ -253,6 +256,98 @@ class DementiaAssistant:
         thread = threading.Thread(target=self._do_identify_object)
         thread.daemon = True
         thread.start()
+
+    def _on_add_person_click(self) -> None:
+        """Handle 'Add Person' button click."""
+        if self._processing:
+            return
+
+        # Show dialog to get name and relationship
+        result = self.gui.show_add_person_dialog()
+        if not result:
+            return  # User cancelled
+
+        name, relation = result
+        if not name.strip():
+            self.gui.show_message("Error", "Please enter a name.", "error")
+            return
+
+        # Sanitize name for folder
+        folder_name = name.strip().lower().replace(" ", "_")
+
+        # Get current frame
+        with self._frame_lock:
+            frame = self._current_frame.copy() if self._current_frame is not None else None
+
+        if frame is None:
+            self.gui.show_message("Error", "No camera frame available.", "error")
+            return
+
+        # Check if there's a face in the frame
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        face_locations = face_recognition.face_locations(rgb_frame, model="hog")
+
+        if not face_locations:
+            self.gui.show_message("Error", "No face detected in the frame.\nPlease make sure a face is visible.", "error")
+            return
+
+        # Create directory for the person
+        person_dir = Path("data/known_faces") / folder_name
+        person_dir.mkdir(parents=True, exist_ok=True)
+
+        # Save the face image
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        image_path = person_dir / f"{folder_name}_{timestamp}.jpg"
+
+        try:
+            cv2.imwrite(str(image_path), frame)
+        except Exception as e:
+            self.gui.show_message("Error", f"Failed to save image: {e}", "error")
+            return
+
+        # Update relationships.json
+        try:
+            relationships_path = Path("data/relationships.json")
+            relationships = {}
+            if relationships_path.exists():
+                with open(relationships_path, 'r') as f:
+                    relationships = json.load(f)
+
+            relationships[folder_name] = {
+                "display_name": name.strip(),
+                "relation": relation.strip()
+            }
+
+            with open(relationships_path, 'w') as f:
+                json.dump(relationships, f, indent=4)
+
+        except Exception as e:
+            self.gui.show_message("Error", f"Failed to update relationships: {e}", "error")
+            return
+
+        # Refresh face encodings
+        self.gui.set_state(AppState.PROCESSING)
+        self.gui.set_result("Updating face recognition...", self.gui.colors['text'])
+
+        if self.face_recognizer.refresh_encodings():
+            self.gui.show_message("Success", f"Added {name.strip()} successfully!\nThe face has been saved and recognition updated.", "info")
+            self.gui.set_result(f"Added: {name.strip()}", self.gui.colors['success'])
+
+            # Log the event
+            if self.logger:
+                self.logger.log_app_event("person_added", {
+                    "name": folder_name,
+                    "display_name": name.strip(),
+                    "relation": relation.strip()
+                })
+
+            # TTS confirmation
+            if self.tts:
+                self.tts.speak(f"I've added {name.strip()} to my memory.")
+        else:
+            self.gui.show_message("Warning", f"Image saved but face encoding failed.\nPlease ensure the face is clearly visible.", "warning")
+
+        self.gui.set_state(AppState.IDLE)
 
     def _schedule_gui_update(self, func, *args):
         """Schedule a GUI update to be processed on the main thread."""
